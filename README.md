@@ -54,3 +54,18 @@ Full-stack editorial portfolio and private administration console for **Jahid Ha
 npm run build
 npm run start
 ```
+
+## GitHub Pages Deployment
+
+A GitHub Actions workflow is included at `.github/workflows/deploy-gh-pages.yml` to build and deploy the public portfolio to GitHub Pages cleanly:
+
+1. Push this repository to GitHub (default branch `main`).
+2. In your GitHub repository, open **Settings -> Pages** and set **Source** to **GitHub Actions**.
+3. Push to `main` (or trigger **Deploy to GitHub Pages** manually from the **Actions** tab).
+   - The workflow automatically detects project subpath repositories (`https://<user>.github.io/<repo>/`) vs user sites (`https://<user>.github.io/`), generates `dist/404.html` and `dist/.nojekyll`, and serves all portrait/CV assets correctly.
+   - To build locally for manual upload to Pages:
+     ```bash
+     npm run build:gh-pages
+     ```
+4. **Full-stack note**: GitHub Pages only hosts static files, so the public site automatically uses static fallback content and offers a direct `mailto:` link on the contact form. If you host `server.ts` separately (for live CMS editing and inbox storage), set `VITE_API_BASE_URL` as a GitHub Repository Variable and `CORS_ORIGIN` on the backend server.
+

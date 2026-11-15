@@ -1,6 +1,6 @@
 import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
-import { apiJson } from '../utils/api';
+import { apiJson, StaticBackendUnavailableError } from '../utils/api';
 import { splitTextToWords } from '../utils/animations';
 import { validateContactInput } from '../utils/validation';
 
@@ -10,6 +10,7 @@ interface ContactSectionProps {
   location: string;
   sectionNumber?: string;
   surfaceVariant?: 'bg' | 'surface';
+  staticMode?: boolean;
 }
 
 export default function ContactSection({
@@ -18,6 +19,7 @@ export default function ContactSection({
   location,
   sectionNumber = '05',
   surfaceVariant = 'surface',
+  staticMode = false,
 }: ContactSectionProps) {
   const [fullName, setFullName] = useState('');
   const [senderEmail, setSenderEmail] = useState('');
@@ -25,7 +27,11 @@ export default function ContactSection({
   const [message, setMessage] = useState('');
   const [website, setWebsite] = useState(''); // honeypot
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{
+    type: 'success' | 'error';
+    text: string;
+    mailtoHref?: string;
+  } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const headingText = 'Start a conversation about workflow automation.';
@@ -52,6 +58,21 @@ export default function ContactSection({
     }
 
     setFieldErrors({});
+
+    const cleaned = check.data!;
+    const mailtoHref = `mailto:${email}?subject=${encodeURIComponent(cleaned.subject)}&body=${encodeURIComponent(
+      `Name: ${cleaned.fullName}\nEmail: ${cleaned.email}\n\n${cleaned.message}`,
+    )}`;
+
+    if (staticMode) {
+      setStatusMessage({
+        type: 'error',
+        text: `This static site does not include the server inbox backend. Email ${email} directly using your mail app below.`,
+        mailtoHref,
+      });
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -69,6 +90,15 @@ export default function ContactSection({
           },
         },
       );
+
+      if (res.staticBackendMissing) {
+        setStatusMessage({
+          type: 'error',
+          text: `This static site does not include the server inbox backend. Email ${email} directly using your mail app below.`,
+          mailtoHref,
+        });
+        return;
+      }
 
       if (!res.ok || !res.data.ok) {
         if (res.data.errors) setFieldErrors(res.data.errors);
@@ -88,11 +118,19 @@ export default function ContactSection({
         type: 'success',
         text: res.data.message || 'Your message has been saved and delivered.',
       });
-    } catch {
-      setStatusMessage({
-        type: 'error',
-        text: 'Network error while sending your message. Please try again.',
-      });
+    } catch (err) {
+      if (err instanceof StaticBackendUnavailableError) {
+        setStatusMessage({
+          type: 'error',
+          text: `This static site does not include the server inbox backend. Email ${email} directly using your mail app below.`,
+          mailtoHref,
+        });
+      } else {
+        setStatusMessage({
+          type: 'error',
+          text: 'Network error while sending your message. Please try again.',
+        });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -280,7 +318,7 @@ export default function ContactSection({
                 <div
                   role="status"
                   aria-live="polite"
-                  className="animate-status-in border px-4 py-3 text-sm"
+                  className="animate-status-in border px-4 py-3 text-sm space-y-2"
                   style={
                     statusMessage.type === 'success'
                       ? {
@@ -295,7 +333,15 @@ export default function ContactSection({
                         }
                   }
                 >
-                  {statusMessage.text}
+                  <p>{statusMessage.text}</p>
+                  {statusMessage.mailtoHref && (
+                    <a
+                      href={statusMessage.mailtoHref}
+                      className="inline-block font-semibold underline underline-offset-4"
+                    >
+                      Send via email app ({email})
+                    </a>
+                  )}
                 </div>
               )}
 

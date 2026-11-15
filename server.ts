@@ -33,6 +33,30 @@ async function startServer() {
     next();
   });
 
+  // Optional CORS support when hosting static frontend (e.g. GitHub Pages) separately
+  const allowedOrigins = (process.env.CORS_ORIGIN || '')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+
+  if (allowedOrigins.length > 0) {
+    app.use('/api', (req, res, next) => {
+      const origin = (req.headers.origin || '').replace(/\/+$/, '');
+      if (origin && allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+        res.setHeader('Access-Control-Allow-Credentials', 'true');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+        res.setHeader('Vary', 'Origin');
+      }
+      if (req.method === 'OPTIONS') {
+        res.sendStatus(204);
+        return;
+      }
+      next();
+    });
+  }
+
   app.use(express.json({ limit: '512kb' }));
   app.use(cookieParser());
 

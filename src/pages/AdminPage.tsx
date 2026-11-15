@@ -6,11 +6,13 @@ import ProjectsManager from '../components/admin/ProjectsManager';
 import SecuritySettings from '../components/admin/SecuritySettings';
 import type { ProjectItem, SiteContent } from '../types/portfolio';
 import { apiJson } from '../utils/api';
+import { resolveAppHref } from '../utils/url';
 
 type AdminTab = 'content' | 'projects' | 'inbox' | 'security';
 
 export default function AdminPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [backendUnavailable, setBackendUnavailable] = useState(false);
   const [authenticated, setAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
 
@@ -49,12 +51,19 @@ export default function AdminPage() {
   useEffect(() => {
     apiJson<{ authenticated: boolean; username?: string }>('/api/admin/me')
       .then((res) => {
+        if (res.staticBackendMissing) {
+          setBackendUnavailable(true);
+          return undefined;
+        }
         if (res.ok && res.data.authenticated) {
           setAuthenticated(true);
           setUsername(res.data.username || '');
           return loadAdminData();
         }
         return undefined;
+      })
+      .catch(() => {
+        setBackendUnavailable(true);
       })
       .finally(() => setCheckingAuth(false));
   }, []);
@@ -101,6 +110,34 @@ export default function AdminPage() {
         <p className="font-mono-tabular text-xs uppercase tracking-wider text-[#57554F]">
           Checking session...
         </p>
+      </div>
+    );
+  }
+
+  if (backendUnavailable) {
+    return (
+      <div className="min-h-screen bg-[#F8F7F4] flex items-center justify-center px-6">
+        <div className="w-full max-w-md border border-[#E4E1DA] bg-white p-8 space-y-4">
+          <p className="font-mono-tabular text-xs uppercase tracking-wider text-[#57554F]">
+            Static Hosting Mode
+          </p>
+          <h1 className="font-display text-2xl font-semibold text-[#141413]">
+            Backend Required for Admin Console
+          </h1>
+          <p className="text-sm leading-relaxed text-[#57554F]">
+            GitHub Pages serves only static public files and cannot run the Express + SQLite admin server.
+            Run the Node server locally or deploy <code className="font-mono-tabular text-[#141413]">server.ts</code>{' '}
+            separately and configure <code className="font-mono-tabular text-[#141413]">VITE_API_BASE_URL</code>.
+          </p>
+          <div className="pt-2">
+            <a
+              href={resolveAppHref('/')}
+              className="inline-block bg-[#141413] px-5 py-2.5 text-xs font-medium text-white hover:bg-[#E8501A]"
+            >
+              Back to public portfolio
+            </a>
+          </div>
+        </div>
       </div>
     );
   }
@@ -175,7 +212,7 @@ export default function AdminPage() {
           <div className="flex items-center gap-4">
             <span className="font-display text-lg font-semibold text-[#141413]">Admin Console</span>
             <a
-              href="/"
+              href={resolveAppHref('/')}
               className="text-xs text-[#57554F] hover:text-[#141413] underline underline-offset-4"
             >
               View public site

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import PublicPortfolio from './components/PublicPortfolio';
+import { resolveAppRoutePath } from './utils/url';
 
 const AdminPage = lazy(() => import('./pages/AdminPage'));
 
@@ -12,7 +13,9 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+  const routePath = resolveAppRoutePath(pathname);
+
+  if (routePath === '/admin' || routePath.startsWith('/admin/')) {
     return (
       <Suspense
         fallback={

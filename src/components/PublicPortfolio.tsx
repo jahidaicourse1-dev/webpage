@@ -1,6 +1,7 @@
 import gsap from 'gsap';
 import { ArrowLeft, ArrowRight, ArrowUpRight, Download } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { FALLBACK_PUBLIC_PORTFOLIO } from '../data/fallbackPortfolio';
 import { useSEO } from '../hooks/useSEO';
 import { useTheme } from '../hooks/useTheme';
 import type { ProjectItem, PublicPortfolioPayload } from '../types/portfolio';
@@ -13,6 +14,7 @@ import {
   splitTextToWords,
   type SmoothScrollController,
 } from '../utils/animations';
+import { resolveApiUrl, resolveAppHref, resolveAssetUrl } from '../utils/url';
 import ContactSection from './ContactSection';
 import CustomCursor from './CustomCursor';
 import Navbar from './Navbar';
@@ -78,6 +80,7 @@ function ProjectBlueprintThumbnail({ index, title }: { index: number; title: str
 export default function PublicPortfolio() {
   const { theme, toggleTheme } = useTheme();
   const [portfolio, setPortfolio] = useState<PublicPortfolioPayload | null>(null);
+  const [staticMode, setStaticMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
@@ -107,22 +110,28 @@ export default function PublicPortfolio() {
     return () => window.removeEventListener('resize', updateMedia);
   }, []);
 
-  // Load public portfolio content
+  // Load public portfolio content (with static GitHub Pages fallback when API backend is absent)
   useEffect(() => {
     let active = true;
-    fetch('/api/public/portfolio')
+    fetch(resolveApiUrl('/api/public/portfolio'))
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to load portfolio');
+        const contentType = res.headers.get('content-type') || '';
+        if (!res.ok || !contentType.toLowerCase().includes('application/json')) {
+          throw new Error('Static host fallback');
+        }
         return (await res.json()) as PublicPortfolioPayload;
       })
       .then((data) => {
         if (!active) return;
         setPortfolio(data);
+        setStaticMode(false);
         setLoading(false);
       })
       .catch(() => {
         if (!active) return;
-        setError('Unable to load portfolio content right now.');
+        setPortfolio(FALLBACK_PUBLIC_PORTFOLIO);
+        setStaticMode(true);
+        setError('');
         setLoading(false);
       });
     return () => {
@@ -285,6 +294,8 @@ export default function PublicPortfolio() {
   }
 
   const { content, projects } = portfolio;
+  const profilePhotoSrc = resolveAssetUrl(content.profilePhotoUrl);
+  const cvFileHref = resolveAssetUrl(content.cvFileUrl);
   const hasSkills = content.skills.length > 0;
   const hasProjects = projects.length > 0;
   const hasExperienceOrEdu =
@@ -340,10 +351,10 @@ export default function PublicPortfolio() {
               <div className="lg:col-span-7 flex flex-col justify-between py-2">
                 <div>
                   <div className="hero-fade flex items-center gap-4">
-                    {content.profilePhotoUrl && (
+                    {profilePhotoSrc && (
                       <div className="h-14 w-14 shrink-0 border border-[var(--border)] bg-[var(--surface)] p-0.5 overflow-hidden">
                         <img
-                          src={content.profilePhotoUrl}
+                          src={profilePhotoSrc}
                           alt={content.name}
                           referrerPolicy="no-referrer"
                           className="h-full w-full object-cover object-top"
@@ -391,9 +402,9 @@ export default function PublicPortfolio() {
                     <span>Get in touch</span>
                     <ArrowRight className="btn-arrow h-4 w-4" aria-hidden="true" />
                   </a>
-                  {content.cvFileUrl && (
+                  {cvFileHref && (
                     <a
-                      href={content.cvFileUrl}
+                      href={cvFileHref}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn-wipe-outline inline-flex items-center gap-2.5 px-5 py-3.5 text-sm font-medium whitespace-nowrap"
@@ -467,11 +478,11 @@ export default function PublicPortfolio() {
                     className="mt-4 font-display text-3xl font-semibold tracking-tight text-[var(--text)] text-balance"
                   />
 
-                  {content.profilePhotoUrl ? (
+                  {profilePhotoSrc ? (
                     <div className="group mt-8 max-w-[280px] border border-[var(--border)] bg-[var(--bg)] p-2">
                       <div className="aspect-square overflow-hidden bg-[var(--surface-subtle)]">
                         <img
-                          src={content.profilePhotoUrl}
+                          src={profilePhotoSrc}
                           alt={content.name}
                           loading="lazy"
                           referrerPolicy="no-referrer"
@@ -622,7 +633,7 @@ export default function PublicPortfolio() {
                         {project.imageUrl ? (
                           <div className="aspect-[16/10] w-full bg-[var(--surface-subtle)] overflow-hidden">
                             <img
-                              src={project.imageUrl}
+                              src={resolveAssetUrl(project.imageUrl)}
                               alt={project.title}
                               loading="lazy"
                               referrerPolicy="no-referrer"
@@ -855,6 +866,7 @@ export default function PublicPortfolio() {
           location={content.location}
           sectionNumber={hasServices ? '06' : '05'}
           surfaceVariant={contactSurface}
+          staticMode={staticMode}
         />
       </main>
 
@@ -870,9 +882,9 @@ export default function PublicPortfolio() {
               <span>{content.location}</span>
             </div>
             <div className="flex items-center gap-6">
-              {content.cvFileUrl && (
+              {cvFileHref && (
                 <a
-                  href={content.cvFileUrl}
+                  href={cvFileHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[var(--text)] underline decoration-[var(--border)] underline-offset-4 hover:decoration-[var(--accent)]"
@@ -912,7 +924,7 @@ export default function PublicPortfolio() {
 
           <div className="mt-4 flex justify-end">
             <a
-              href="/admin"
+              href={resolveAppHref('/admin')}
               rel="nofollow"
               className="font-mono-tabular text-[11px] text-[var(--muted)]/70 hover:text-[var(--text)] transition-colors duration-200 underline-offset-4 hover:underline"
             >
@@ -971,7 +983,7 @@ export default function PublicPortfolio() {
               {selectedProject.imageUrl ? (
                 <div className="aspect-[16/9] w-full overflow-hidden">
                   <img
-                    src={selectedProject.imageUrl}
+                    src={resolveAssetUrl(selectedProject.imageUrl)}
                     alt={selectedProject.title}
                     referrerPolicy="no-referrer"
                     className="h-full w-full object-cover"

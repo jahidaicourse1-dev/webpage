@@ -2,6 +2,7 @@ import { Download, Search, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ContactMessageItem } from '../../types/portfolio';
 import { apiJson } from '../../utils/api';
+import { resolveApiUrl } from '../../utils/url';
 
 export default function MessagesInbox() {
   const [messages, setMessages] = useState<ContactMessageItem[]>([]);
@@ -82,7 +83,7 @@ export default function MessagesInbox() {
           </form>
 
           <a
-            href="/api/admin/messages/export"
+            href={resolveApiUrl('/api/admin/messages/export')}
             className="inline-flex items-center gap-1.5 border border-[#141413] bg-white px-3.5 py-2 text-xs font-medium text-[#141413] hover:bg-[#F8F7F4]"
           >
             <Download className="h-3.5 w-3.5" aria-hidden="true" />

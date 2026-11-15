@@ -2,6 +2,7 @@ import { Plus, Trash2, Upload } from 'lucide-react';
 import { useState } from 'react';
 import type { SiteContent } from '../../types/portfolio';
 import { apiJson, apiUpload } from '../../utils/api';
+import { resolveAssetUrl } from '../../utils/url';
 
 interface ContentEditorProps {
   initialContent: SiteContent;
@@ -210,7 +211,7 @@ export default function ContentEditor({ initialContent, onSaved }: ContentEditor
             </div>
             {content.profilePhotoUrl && (
               <img
-                src={content.profilePhotoUrl}
+                src={resolveAssetUrl(content.profilePhotoUrl)}
                 alt="Profile preview"
                 className="h-20 w-20 object-cover border border-[#E4E1DA]"
               />
